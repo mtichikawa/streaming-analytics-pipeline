@@ -1,0 +1,59 @@
+# Local streaming stack: Redpanda single broker (no Zookeeper) + Redpanda
+# Console + a Streamlit dashboard container scaffold. Spark jobs and the
+# producer run on the host against the broker's external listener
+# (localhost:19092) for lighter local dev; see README run instructions.
+#
+#   docker-compose up -d redpanda
+#   rpk topic create crypto.ticks --brokers localhost:19092
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:v24.1.7
+    container_name: sap-redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      # Internal listener for other containers, external for host processes.
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"   # external Kafka API (producer + Spark on host)
+      - "9644:9644"     # admin / metrics
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  console:
+    image: redpandadata/console:v2.5.2
+    container_name: sap-redpanda-console
+    depends_on:
+      - redpanda
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+
+  # Dashboard scaffold — wired up on Day 4. Mounts the repo so the Streamlit
+  # app can read the local Delta tables the Spark jobs write.
+  dashboard:
+    image: python:3.11-slim
+    container_name: sap-dashboard
+    depends_on:
+      - redpanda
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "8501:8501"
+    command: >
+      sh -c "pip install --no-cache-dir streamlit pandas pyarrow deltalake &&
+             streamlit run dashboards/app.py --server.port 8501 --server.address 0.0.0.0"
+    profiles: ["dashboard"]   # opt-in until Day 4: docker-compose --profile dashboard up
