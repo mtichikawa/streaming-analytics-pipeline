@@ -16,6 +16,7 @@ purpose so state is easy to wipe.
 """
 
 from pathlib import Path
+from typing import Any
 
 # Repo root = two levels up from this file (src/checkpoint_config.py).
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -38,7 +39,7 @@ WINDOW_DURATION = "5 minutes"    # OHLCV tumbling-window size
 TRIGGER_INTERVAL = "10 seconds"  # microbatch cadence
 
 
-def as_str(path) -> str:
+def as_str(path: Any) -> str:
     """Spark wants string paths, not Path objects. Ensures parent exists."""
     p = Path(path)
     p.mkdir(parents=True, exist_ok=True)
