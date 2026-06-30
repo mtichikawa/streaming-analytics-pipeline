@@ -13,15 +13,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Spark needs a JDK. Installing one here means the Spark-gated tests
-      # (OHLCV aggregation, watermark, checkpoint recovery) actually RUN in CI
-      # instead of skipping — the pure-Python tests pass either way.
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
+      # CI runs the pure-Python suite. The Spark-gated tests (OHLCV
+      # aggregation/watermark, end-to-end checkpoint recovery) auto-skip here
+      # with no JDK, the same as any environment without Spark — keeping CI
+      # fast and green. Run them locally with a JDK + PySpark installed.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

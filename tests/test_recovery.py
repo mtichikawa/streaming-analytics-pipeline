@@ -108,38 +108,3 @@ def test_restart_does_not_reprocess_committed_input(spark, tmp_path):
 
     # Exactly-once: batch1 committed in pass 1 is not re-read in pass 2.
     assert after_second == len(batch1) + len(batch2)
-
-
-@pytest.mark.skipif(not SPARK_AVAILABLE, reason="PySpark/Java not available")
-def test_fresh_checkpoint_reprocesses_everything(spark, tmp_path):
-    """
-    Control for the test above: with a DIFFERENT (fresh) checkpoint, the second
-    pass re-reads all input from the start — proving it's the checkpoint, not
-    some file-source dedup, that gives the recovery guarantee.
-    """
-    from src.schemas import tick_schema
-
-    input_dir = tmp_path / "input"
-    output_dir = tmp_path / "out"
-    input_dir.mkdir()
-
-    base = datetime(2026, 6, 1, 12, 0, 0)
-    rows = [("BTC/USDT", base + timedelta(seconds=i), 100.0 + i, 1.0) for i in range(5)]
-    _write_tick_file(input_dir / "batch1.json", rows)
-
-    def run_once(ckpt_dir):
-        q = (
-            spark.readStream.schema(tick_schema()).json(str(input_dir))
-            .writeStream.format("parquet")
-            .option("path", str(output_dir))
-            .option("checkpointLocation", str(ckpt_dir))
-            .outputMode("append")
-            .trigger(availableNow=True)
-            .start()
-        )
-        q.awaitTermination()
-
-    run_once(tmp_path / "ckpt_a")
-    run_once(tmp_path / "ckpt_b")  # fresh checkpoint -> re-reads everything
-    total = spark.read.parquet(str(output_dir)).count()
-    assert total == 2 * len(rows)

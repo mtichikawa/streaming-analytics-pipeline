@@ -110,7 +110,7 @@ rpk topic consume crypto.ticks --brokers localhost:19092
 pytest tests/ -v
 ```
 
-The producer, schema, z-score, dashboard-data, and checkpoint-config tests are pure Python and run anywhere (37 pass with no Spark). The OHLCV aggregation/watermark and end-to-end checkpoint-recovery tests need a real SparkSession (Java + PySpark) and are automatically **skip-gated** when Spark isn't available, so the suite stays green in lightweight environments. CI (`.github/workflows/tests.yml`) installs a JDK so the Spark-gated tests actually run there rather than skip.
+The producer, schema, z-score, dashboard-data, and checkpoint-config tests are pure Python and run anywhere (37 pass with no Spark). The OHLCV aggregation/watermark and end-to-end checkpoint-recovery tests need a real SparkSession (Java + PySpark) and are automatically **skip-gated** when Spark isn't available, so the suite stays green in lightweight environments. CI (`.github/workflows/tests.yml`) runs the pure-Python suite; the Spark-gated tests skip there with no JDK, so run them locally with Java + PySpark installed.
 
 ## Interview talking points this unlocks
 
