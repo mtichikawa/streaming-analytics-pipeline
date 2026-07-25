@@ -30,8 +30,8 @@ Run (needs a live broker + Java + Spark):
 import argparse
 import logging
 
-from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import functions as F
+from pyspark.sql import SparkSession, DataFrame
 
 try:
     from src.schemas import tick_schema
