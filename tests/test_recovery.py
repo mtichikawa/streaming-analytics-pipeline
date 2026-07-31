@@ -13,6 +13,7 @@ Two layers:
   jars — just a local SparkSession, same as the other Spark-gated tests.
 """
 
+from typing import Any
 import json
 from datetime import datetime, timedelta
 
@@ -36,7 +37,7 @@ def test_checkpoint_under_repo_root():
     assert str(ckpt.ALERTS_TABLE).startswith(str(ckpt.DELTA_ROOT))
 
 
-def test_as_str_creates_directory(tmp_path):
+def test_as_str_creates_directory(tmp_path: Any):
     target = tmp_path / "checkpoints" / "ohlcv_5m"
     assert not target.exists()
     out = ckpt.as_str(target)
