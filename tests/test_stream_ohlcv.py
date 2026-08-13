@@ -98,11 +98,23 @@ def test_window_bounds_are_5_minutes(spark):
 def test_watermark_present_in_streaming_plan(spark):
     """
     aggregate_ohlcv must apply a watermark so streaming state stays bounded.
-    We can't easily assert drop-behavior in batch mode, so we assert the
-    watermark op is in the logical plan.
+
+    The watermark node only exists in a STREAMING plan — on a batch DataFrame
+    Spark treats withWatermark as a no-op and the node never appears, which is
+    why this has to build a real streaming source rather than a list of rows.
     """
     from src.stream_ohlcv import aggregate_ohlcv
-    base = datetime(2026, 6, 1, 12, 0, 0)
-    df = _ticks_df(spark, [("BTC/USDT", base, 100.0, 1.0)])
-    plan = aggregate_ohlcv(df)._jdf.queryExecution().analyzed().toString()
+
+    ticks = (
+        spark.readStream.format("rate").option("rowsPerSecond", 1).load()
+        .selectExpr(
+            "'BTC/USDT' as symbol",
+            "timestamp as timestamp",
+            "cast(value as double) as price",
+            "cast(1 as double) as volume",
+        )
+    )
+    assert ticks.isStreaming, "test setup failed: source is not streaming"
+
+    plan = aggregate_ohlcv(ticks)._jdf.queryExecution().analyzed().toString()
     assert "EventTimeWatermark" in plan
