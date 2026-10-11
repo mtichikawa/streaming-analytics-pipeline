@@ -56,7 +56,7 @@ The OHLCV job sets a **30-second watermark** on the event-time column. A tick th
 
 ## Exactly-once recovery
 
-Each Spark job writes to a checkpoint directory (`checkpoints/ohlcv_5m`, `checkpoints/alerts`). On restart it resumes from the last committed offsets, and the Delta sink's transactional commits give effective exactly-once on the output. This is the one streaming claim that's easy to hand-wave, so `tests/test_recovery.py` actually proves it: a checkpointed query runs over a growing input, gets killed, and restarts — the test asserts the already-committed input is **not** reprocessed, with a fresh-checkpoint control that reprocesses everything to show it's the checkpoint doing the work. To wipe state and start fresh:
+Each Spark job writes to a checkpoint directory (`checkpoints/ohlcv_5m`, `checkpoints/alerts`). On restart it resumes from the last committed offsets, and the Delta sink's transactional commits give effective exactly-once on the output. This is the one streaming claim that's easy to hand-wave, so `tests/test_recovery.py` actually proves it: a checkpointed query processes a first batch, more input arrives, and the same query restarts from the same checkpoint — the test asserts the output holds the first batch plus the second, not the first batch twice (which is what a restart without the checkpoint would give). It needs Spark, so it runs locally and skips in CI. To wipe state and start fresh:
 
 ```bash
 rm -rf checkpoints/ohlcv_5m delta/ohlcv_5m   # reset the OHLCV job
@@ -115,7 +115,7 @@ The producer, schema, z-score, dashboard-data, and checkpoint-config tests are p
 ## Interview talking points this unlocks
 
 - **Watermarking and late-data handling** — a 30-second watermark on the OHLCV job: a late tick within that bound updates the right bucket, later ticks are dropped to keep state bounded.
-- **Exactly-once vs at-least-once** — checkpointed Delta sinks give effective exactly-once on the output, verified by killing the job mid-stream and checking for duplicates after restart.
+- **Exactly-once vs at-least-once** — checkpointed Delta sinks give effective exactly-once on the output, verified by restarting from the checkpoint after new input arrives and checking that committed input isn't reprocessed.
 - **Tumbling vs sliding vs session windows** — OHLCV is tumbling: fixed 5-minute buckets, no overlap. Session windows would be wrong for a continuous price feed.
 - **Backpressure and consumer lag** — Redpanda's consumer-lag metric plus Spark's microbatch sizing make lag observable.
 - **Stream-batch unification** — `aggregate_ohlcv()` is one DataFrame transform that runs against a live Redpanda stream or a historical Delta table with identical code.
