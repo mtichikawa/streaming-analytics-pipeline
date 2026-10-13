@@ -1,6 +1,6 @@
 # Streaming Analytics Pipeline
 
-A real-time crypto ticker pipeline on **Redpanda + Spark Structured Streaming + Delta Lake**, with a Streamlit live dashboard. This closes the streaming gap in the portfolio — the other data projects (cloud-etl, sql-analytics, databricks-lakehouse) are all batch. Everything runs locally via docker-compose; no cloud, no managed services.
+A real-time crypto ticker pipeline on **Redpanda + Spark Structured Streaming + Delta Lake**, with a Streamlit live dashboard. Everything runs locally via docker-compose; no cloud, no managed services.
 
 ## Architecture
 
@@ -112,10 +112,3 @@ pytest tests/ -v
 
 The producer, schema, z-score, dashboard-data, and checkpoint-config tests are pure Python and run anywhere (37 pass with no Spark). The OHLCV aggregation/watermark and end-to-end checkpoint-recovery tests need a real SparkSession (Java + PySpark) and are automatically **skip-gated** when Spark isn't available, so the suite stays green in lightweight environments. CI (`.github/workflows/tests.yml`) runs the pure-Python suite; the Spark-gated tests skip there with no JDK, so run them locally with Java + PySpark installed.
 
-## Interview talking points this unlocks
-
-- **Watermarking and late-data handling** — a 30-second watermark on the OHLCV job: a late tick within that bound updates the right bucket, later ticks are dropped to keep state bounded.
-- **Exactly-once vs at-least-once** — checkpointed Delta sinks give effective exactly-once on the output, verified by restarting from the checkpoint after new input arrives and checking that committed input isn't reprocessed.
-- **Tumbling vs sliding vs session windows** — OHLCV is tumbling: fixed 5-minute buckets, no overlap. Session windows would be wrong for a continuous price feed.
-- **Backpressure and consumer lag** — Redpanda's consumer-lag metric plus Spark's microbatch sizing make lag observable.
-- **Stream-batch unification** — `aggregate_ohlcv()` is one DataFrame transform that runs against a live Redpanda stream or a historical Delta table with identical code.
